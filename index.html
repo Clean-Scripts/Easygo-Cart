@@ -13,7 +13,6 @@
         .cart-item:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .remove-btn { transition: all 0.2s; }
         .remove-btn:hover { transform: scale(1.1); }
-        .coupon-input:focus { border-color: #10b981; }
         .empty-cart-icon { 
             font-size: 4rem; 
             animation: bounce 2s infinite; 
@@ -77,49 +76,21 @@
                     <span id="items-total" class="font-bold text-xl text-gray-900">₹0</span>
                 </div>
                 
-                <!-- Delivery Charge -->
-                <div class="flex justify-between items-center py-3 border-t border-gray-100">
-                    <span class="text-gray-600 text-lg">Delivery Charge</span>
-                    <span id="delivery-charge" class="font-bold text-xl text-gray-900">₹0</span>
-                </div>
-                
-                <!-- Coupon Section -->
-                <div class="border-t border-gray-100 pt-6">
-                    <h3 class="font-bold mb-4 text-gray-900">Apply Coupon</h3>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="coupon-code" 
-                               placeholder="Enter coupon code" 
-                               class="flex-1 p-4 border-2 border-gray-300 rounded-2xl coupon-input focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <button id="apply-coupon" 
-                                class="px-6 bg-green-500 text-white font-bold rounded-2xl hover:bg-green-600 transition-colors">
-                            Apply
-                        </button>
-                    </div>
-                    <div id="coupon-message" class="text-sm font-medium"></div>
-                    
-                    <div id="coupon-discount" class="hidden mt-4">
-                        <div class="flex justify-between text-green-600 items-center py-2">
-                            <span class="font-bold">Coupon Discount</span>
-                            <span id="discount-amount" class="font-bold text-lg">-₹0</span>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Total Amount -->
                 <div class="border-t border-gray-100 pt-6">
                     <div class="flex justify-between items-center">
-                        <span class="text-2xl font-bold text-gray-900">Total Amount</span>
+                        <span class="text-2xl font-bold text-gray-900">Cart Subtotal</span>
                         <span id="cart-total" class="text-3xl font-black text-green-600">₹0</span>
                     </div>
-                    <p id="free-delivery-note" class="text-green-600 text-sm font-medium mt-2 hidden">
-                        🎉 Free delivery applied!
+                    <p class="text-gray-500 text-sm mt-2">
+                        Delivery charge will be calculated on the next page based on your address
                     </p>
                 </div>
             </div>
             
             <button id="proceed-to-address" 
                     class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg">
-                🚚 Proceed to Address
+                📍 Proceed to Address
             </button>
             
             <!-- WhatsApp Support -->
@@ -180,16 +151,7 @@
     </footer>
 
     <script>
-        // Available coupons
-        const coupons = {
-            'EASYGO10': { discount: 10, type: 'percent', description: 'Get 10% off' },
-            'WELCOME20': { discount: 20, type: 'percent', description: 'Welcome 20% discount' },
-            'FIRST50': { discount: 50, type: 'fixed', description: '₹50 off on first order' },
-            'FREE199': { discount: 0, type: 'delivery', description: 'Free delivery above ₹199' }
-        };
-
         let cart = [];
-        let appliedCoupon = null;
 
         // Load cart from localStorage
         function loadCart() {
@@ -202,7 +164,6 @@
                 if (new Date() > expiry) {
                     localStorage.removeItem('easygo-cart');
                     localStorage.removeItem('easygo-cart-expiry');
-                    localStorage.removeItem('easygo-coupon');
                     cart = [];
                     showNotification('Cart expired and cleared', 'warning');
                 } else {
@@ -210,12 +171,6 @@
                 }
             } else {
                 cart = JSON.parse(cartData) || [];
-            }
-            
-            // Load coupon
-            const couponData = localStorage.getItem('easygo-coupon');
-            if (couponData) {
-                appliedCoupon = JSON.parse(couponData);
             }
             
             renderCart();
@@ -241,7 +196,6 @@
             let itemsTotal = 0;
             
             cart.forEach((item, index) => {
-                // Ensure item.totalPrice is a number
                 const itemTotal = parseFloat(item.totalPrice) || 0;
                 itemsTotal += itemTotal;
                 
@@ -310,21 +264,17 @@
             const item = cart[index];
             let newQuantity = (item.quantity || 1) + change;
             
-            // Minimum quantity is 1
             if (newQuantity < 1) {
                 newQuantity = 1;
             }
             
-            // Maximum quantity is 99
             if (newQuantity > 99) {
                 newQuantity = 99;
                 showNotification('Maximum quantity reached (99 items)', 'info');
             }
             
-            // Update item
             item.quantity = newQuantity;
             
-            // Recalculate total price
             if (item.isPiecePack) {
                 item.totalPrice = Math.round(item.unitPrice * newQuantity);
                 item.totalPieces = newQuantity;
@@ -341,7 +291,6 @@
             saveCart();
             renderCart();
             
-            // Show feedback
             if (change > 0) {
                 showNotification(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
             } else if (change < 0 && newQuantity > 0) {
@@ -362,93 +311,22 @@
             }
         }
 
-        // Update summary with proper calculations
+        // Update summary
         function updateSummary(itemsTotal) {
-            // Calculate delivery charge (free above ₹199)
-            let deliveryCharge = 0;
-            const freeDeliveryNote = document.getElementById('free-delivery-note');
-            
-            if (itemsTotal < 199) {
-                deliveryCharge = 29; // Standard delivery charge
-                freeDeliveryNote.classList.add('hidden');
-                
-                // Show amount needed for free delivery
-                const amountNeeded = 199 - itemsTotal;
-                if (amountNeeded > 0) {
-                    freeDeliveryNote.textContent = `Add ₹${amountNeeded} more for free delivery!`;
-                    freeDeliveryNote.classList.remove('hidden');
-                    freeDeliveryNote.classList.add('text-amber-600');
-                }
-            } else {
-                freeDeliveryNote.textContent = '🎉 Free delivery applied!';
-                freeDeliveryNote.classList.remove('hidden');
-                freeDeliveryNote.classList.remove('text-amber-600');
-                freeDeliveryNote.classList.add('text-green-600');
-            }
-            
-            // Calculate coupon discount
-            let discount = 0;
-            let discountMessage = '';
-            
-            if (appliedCoupon) {
-                if (appliedCoupon.type === 'percent') {
-                    discount = itemsTotal * (appliedCoupon.discount / 100);
-                    discountMessage = `${appliedCoupon.discount}% off`;
-                } else if (appliedCoupon.type === 'fixed') {
-                    discount = Math.min(appliedCoupon.discount, itemsTotal);
-                    discountMessage = `₹${appliedCoupon.discount} off`;
-                }
-                // For delivery coupons, discount is already applied via deliveryCharge
-                
-                document.getElementById('coupon-discount').classList.remove('hidden');
-                document.getElementById('discount-amount').textContent = `-₹${discount.toFixed(2)}`;
-            } else {
-                document.getElementById('coupon-discount').classList.add('hidden');
-            }
-            
-            // Calculate total
-            const total = itemsTotal - discount + deliveryCharge;
-            
-            // Update display
             document.getElementById('items-total').textContent = `₹${itemsTotal.toFixed(2)}`;
-            document.getElementById('delivery-charge').textContent = deliveryCharge > 0 ? `₹${deliveryCharge.toFixed(2)}` : 'FREE';
-            document.getElementById('cart-total').textContent = `₹${total.toFixed(2)}`;
+            document.getElementById('cart-total').textContent = `₹${itemsTotal.toFixed(2)}`;
             
-            // Save total for next page
-            localStorage.setItem('easygo-cart-total', total.toFixed(2));
             localStorage.setItem('easygo-cart-items-total', itemsTotal.toFixed(2));
-            localStorage.setItem('easygo-cart-delivery', deliveryCharge.toFixed(2));
-            localStorage.setItem('easygo-cart-discount', discount.toFixed(2));
         }
 
         // Save cart to localStorage
         function saveCart() {
             localStorage.setItem('easygo-cart', JSON.stringify(cart));
             
-            // Set expiry for 1 week
             const expiry = new Date();
             expiry.setDate(expiry.getDate() + 7);
             localStorage.setItem('easygo-cart-expiry', expiry.toISOString());
         }
-
-        // Apply coupon
-        document.getElementById('apply-coupon').addEventListener('click', () => {
-            const code = document.getElementById('coupon-code').value.trim().toUpperCase();
-            const message = document.getElementById('coupon-message');
-            
-            if (coupons[code]) {
-                appliedCoupon = coupons[code];
-                localStorage.setItem('easygo-coupon', JSON.stringify(appliedCoupon));
-                
-                message.textContent = `✅ Coupon "${code}" applied! ${appliedCoupon.description}`;
-                message.className = 'text-sm text-green-600 font-medium';
-                
-                renderCart();
-            } else {
-                message.textContent = '❌ Invalid coupon code';
-                message.className = 'text-sm text-red-600 font-medium';
-            }
-        });
 
         // Proceed to address
         document.getElementById('proceed-to-address').addEventListener('click', () => {
@@ -457,26 +335,20 @@
                 return;
             }
             
-            // Save cart state before proceeding
             saveCart();
-            
-            // Redirect to address page
             window.location.href = 'https://clean-scripts.github.io/Easygo-Address/';
         });
 
         // Show notification
         function showNotification(message, type = 'info') {
-            // Remove any existing notification
             const existingNotification = document.querySelector('.cart-notification');
             if (existingNotification) {
                 existingNotification.remove();
             }
             
-            // Create notification element
             const notification = document.createElement('div');
             notification.className = `cart-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-2xl shadow-xl font-bold text-white transition-all transform translate-x-full`;
             
-            // Set background color based on type
             if (type === 'success') {
                 notification.style.backgroundColor = '#10b981';
             } else if (type === 'warning') {
@@ -489,15 +361,12 @@
             
             notification.textContent = message;
             
-            // Add to page
             document.body.appendChild(notification);
             
-            // Animate in
             setTimeout(() => {
                 notification.style.transform = 'translateX(0)';
             }, 10);
             
-            // Remove after 3 seconds
             setTimeout(() => {
                 notification.style.transform = 'translateX(100%)';
                 setTimeout(() => {
@@ -508,13 +377,6 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', loadCart);
-        
-        // Enter key for coupon
-        document.getElementById('coupon-code').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('apply-coupon').click();
-            }
-        });
     </script>
 </body>
 </html>
