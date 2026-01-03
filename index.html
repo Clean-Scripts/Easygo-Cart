@@ -134,233 +134,277 @@
         </div>
     </footer>
 
-    <script>
-        let cart = [];
+<script>
+    let cart = [];
 
-        // Load cart from localStorage
-        function loadCart() {
-            const cartData = localStorage.getItem('easygo-cart');
-            const expiryData = localStorage.getItem('easygo-cart-expiry');
-            
-            // Check expiry
-            if (expiryData) {
-                const expiry = new Date(expiryData);
-                if (new Date() > expiry) {
-                    localStorage.removeItem('easygo-cart');
-                    localStorage.removeItem('easygo-cart-expiry');
-                    cart = [];
-                    showNotification('Cart expired and cleared', 'warning');
-                } else {
-                    cart = JSON.parse(cartData) || [];
-                }
+    // Load cart from localStorage
+    function loadCart() {
+        const cartData = localStorage.getItem('easygo-cart');
+        const expiryData = localStorage.getItem('easygo-cart-expiry');
+        
+        // Check expiry
+        if (expiryData) {
+            const expiry = new Date(expiryData);
+            if (new Date() > expiry) {
+                localStorage.removeItem('easygo-cart');
+                localStorage.removeItem('easygo-cart-expiry');
+                cart = [];
+                showNotification('Cart expired and cleared', 'warning');
             } else {
                 cart = JSON.parse(cartData) || [];
             }
-            
-            renderCart();
+        } else {
+            cart = JSON.parse(cartData) || [];
         }
+        
+        renderCart();
+    }
 
-        // Render cart items
-        function renderCart() {
-            const container = document.getElementById('cart-items-container');
-            const emptyCart = document.getElementById('empty-cart');
-            const summary = document.getElementById('cart-summary');
+    // Render cart items
+    function renderCart() {
+        const container = document.getElementById('cart-items-container');
+        const emptyCart = document.getElementById('empty-cart');
+        const summary = document.getElementById('cart-summary');
+        
+        if (cart.length === 0) {
+            container.innerHTML = '';
+            emptyCart.classList.remove('hidden');
+            summary.classList.add('hidden');
+            return;
+        }
+        
+        emptyCart.classList.add('hidden');
+        summary.classList.remove('hidden');
+        
+        let html = '';
+        let itemsTotal = 0;
+        
+        cart.forEach((item, index) => {
+            // Get unit price and calculate total
+            const unitPrice = parseFloat(item.unitPrice) || 0;
+            const quantity = parseInt(item.quantity) || 1;
+            const itemTotal = unitPrice * quantity;
             
-            if (cart.length === 0) {
-                container.innerHTML = '';
-                emptyCart.classList.remove('hidden');
-                summary.classList.add('hidden');
-                return;
-            }
+            // Ensure all price properties exist
+            item.total = itemTotal.toFixed(2);
+            item.totalPrice = itemTotal;
+            if (!item.unitPrice) item.unitPrice = unitPrice;
             
-            emptyCart.classList.add('hidden');
-            summary.classList.remove('hidden');
+            itemsTotal += itemTotal;
             
-            let html = '';
-            let itemsTotal = 0;
+            const packNames = {
+                'piece': 'Per Piece',
+                'standard': 'Standard (8 pcs)',
+                'family': 'Family Pack (16 pcs)',
+                'xl': 'Extra Large (32 pcs)'
+            };
             
-            cart.forEach((item, index) => {
-                const itemTotal = parseFloat(item.totalPrice) || 0;
-                itemsTotal += itemTotal;
-                
-                const packNames = {
-                    'piece': 'Per Piece',
-                    'standard': 'Standard (8 pcs)',
-                    'family': 'Family Pack (16 pcs)',
-                    'xl': 'Extra Large (32 pcs)'
-                };
-                
-                const packDisplay = item.isPiecePack ? `${item.totalPieces || item.quantity} piece(s)` : 
-                                   packNames[item.pack] || item.pack;
-                
-                html += `
-                    <div class="cart-item bg-white rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-6">
-                        <!-- Item Image -->
-                        <img src="${item.image || 'https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png'}" 
-                             alt="${item.name}" 
-                             class="w-24 h-24 md:w-20 md:h-20 object-contain rounded-xl flex-shrink-0">
-                        
-                        <!-- Item Details -->
-                        <div class="flex-1 min-w-0">
-                            <h3 class="font-bold text-lg text-gray-900 truncate">${item.name || 'Unnamed Item'}</h3>
-                            <p class="text-gray-600 text-sm mb-2">${item.description || packDisplay}</p>
-                            <p class="text-green-600 font-bold text-lg">₹${itemTotal.toFixed(2)}</p>
-                        </div>
-                        
-                        <!-- Quantity Controls -->
+            const packDisplay = item.isPiecePack ? `${item.totalPieces || item.quantity} piece(s)` : 
+                               packNames[item.pack] || item.pack;
+            
+            html += `
+                <div class="cart-item bg-white rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+                    <!-- Item Image -->
+                    <img src="${item.image || 'https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png'}" 
+                         alt="${item.name}" 
+                         class="w-24 h-24 md:w-20 md:h-20 object-contain rounded-xl flex-shrink-0">
+                    
+                    <!-- Item Details -->
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-lg text-gray-900 truncate">${item.name || 'Unnamed Item'}</h3>
+                        <p class="text-gray-600 text-sm mb-2">${item.description || packDisplay}</p>
                         <div class="flex items-center gap-4">
-                            <div class="flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2">
-                                <button onclick="updateQuantity(${index}, -1)" 
-                                        class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
-                                    <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                                    </svg>
-                                </button>
-                                <span class="font-bold text-lg w-8 text-center">${item.quantity || 1}</span>
-                                <button onclick="updateQuantity(${index}, 1)" 
-                                        class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
-                                    <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            <!-- Remove Button -->
-                            <button onclick="removeItem(${index})" 
-                                    class="remove-btn ml-2 text-red-500 hover:text-red-700 p-2">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            <p class="text-green-600 font-bold text-lg">₹${itemTotal.toFixed(2)}</p>
+                            <p class="text-gray-500 text-sm">(₹${unitPrice.toFixed(2)} × ${quantity})</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quantity Controls -->
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2">
+                            <button onclick="updateQuantity(${index}, -1)" 
+                                    class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
+                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <span class="font-bold text-lg w-8 text-center">${quantity}</span>
+                            <button onclick="updateQuantity(${index}, 1)" 
+                                    class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
+                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
                             </button>
                         </div>
+                        
+                        <!-- Remove Button -->
+                        <button onclick="removeItem(${index})" 
+                                class="remove-btn ml-2 text-red-500 hover:text-red-700 p-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
                     </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-            updateSummary(itemsTotal);
-        }
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        updateSummary(itemsTotal);
+        saveCart();
+    }
 
-        // Update quantity
-        function updateQuantity(index, change) {
-            if (index < 0 || index >= cart.length) return;
-            
-            const item = cart[index];
-            let newQuantity = (item.quantity || 1) + change;
-            
-            if (newQuantity < 1) {
-                newQuantity = 1;
-            }
-            
-            if (newQuantity > 99) {
-                newQuantity = 99;
-                showNotification('Maximum quantity reached (99 items)', 'info');
-            }
-            
-            item.quantity = newQuantity;
-            
-            if (item.isPiecePack) {
-                item.totalPrice = Math.round(item.unitPrice * newQuantity);
-                item.totalPieces = newQuantity;
-                item.description = `${newQuantity} piece${newQuantity !== 1 ? 's' : ''}`;
-            } else {
-                item.totalPrice = Math.round(item.unitPrice * newQuantity);
-                const pieces = item.pack === 'standard' ? 8 : 
-                              item.pack === 'family' ? 16 : 
-                              item.pack === 'xl' ? 32 : 1;
-                item.totalPieces = newQuantity * pieces;
-                item.description = `${newQuantity} pack${newQuantity !== 1 ? 's' : ''} (${pieces} pieces each)`;
-            }
-            
+    // Update quantity
+    function updateQuantity(index, change) {
+        if (index < 0 || index >= cart.length) return;
+        
+        const item = cart[index];
+        let newQuantity = (item.quantity || 1) + change;
+        
+        if (newQuantity < 1) {
+            newQuantity = 1;
+        }
+        
+        if (newQuantity > 99) {
+            newQuantity = 99;
+            showNotification('Maximum quantity reached (99 items)', 'info');
+        }
+        
+        item.quantity = newQuantity;
+        
+        // Recalculate total
+        const unitPrice = parseFloat(item.unitPrice) || 0;
+        const itemTotal = unitPrice * newQuantity;
+        
+        // Store with both property names
+        item.total = itemTotal.toFixed(2);
+        item.totalPrice = itemTotal;
+        
+        if (item.isPiecePack) {
+            item.totalPieces = newQuantity;
+            item.description = `${newQuantity} piece${newQuantity !== 1 ? 's' : ''}`;
+        } else {
+            const pieces = item.pack === 'standard' ? 8 : 
+                          item.pack === 'family' ? 16 : 
+                          item.pack === 'xl' ? 32 : 1;
+            item.totalPieces = newQuantity * pieces;
+            item.description = `${newQuantity} pack${newQuantity !== 1 ? 's' : ''} (${pieces} pieces each)`;
+        }
+        
+        saveCart();
+        renderCart();
+        
+        if (change > 0) {
+            showNotification(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
+        } else if (change < 0 && newQuantity > 0) {
+            showNotification(`Decreased ${item.name} quantity to ${newQuantity}`, 'info');
+        }
+    }
+
+    // Remove item
+    function removeItem(index) {
+        if (index < 0 || index >= cart.length) return;
+        
+        const itemName = cart[index].name;
+        if (confirm(`Are you sure you want to remove "${itemName}" from your cart?`)) {
+            cart.splice(index, 1);
             saveCart();
             renderCart();
-            
-            if (change > 0) {
-                showNotification(`Increased ${item.name} quantity to ${newQuantity}`, 'success');
-            } else if (change < 0 && newQuantity > 0) {
-                showNotification(`Decreased ${item.name} quantity to ${newQuantity}`, 'info');
+            showNotification(`${itemName} removed from cart`, 'warning');
+        }
+    }
+
+    // Update summary
+    function updateSummary(itemsTotal) {
+        document.getElementById('items-total').textContent = `₹${itemsTotal.toFixed(2)}`;
+        document.getElementById('cart-total').textContent = `₹${itemsTotal.toFixed(2)}`;
+        
+        localStorage.setItem('easygo-cart-items-total', itemsTotal.toFixed(2));
+    }
+
+    // Save cart to localStorage
+    function saveCart() {
+        // Ensure all items have proper price properties
+        cart.forEach(item => {
+            if (!item.total && item.totalPrice) {
+                item.total = item.totalPrice.toFixed(2);
             }
-        }
-
-        // Remove item
-        function removeItem(index) {
-            if (index < 0 || index >= cart.length) return;
-            
-            const itemName = cart[index].name;
-            if (confirm(`Are you sure you want to remove "${itemName}" from your cart?`)) {
-                cart.splice(index, 1);
-                saveCart();
-                renderCart();
-                showNotification(`${itemName} removed from cart`, 'warning');
+            if (!item.totalPrice && item.total) {
+                item.totalPrice = parseFloat(item.total);
             }
-        }
-
-        // Update summary
-        function updateSummary(itemsTotal) {
-            document.getElementById('items-total').textContent = `₹${itemsTotal.toFixed(2)}`;
-            document.getElementById('cart-total').textContent = `₹${itemsTotal.toFixed(2)}`;
-            
-            localStorage.setItem('easygo-cart-items-total', itemsTotal.toFixed(2));
-        }
-
-        // Save cart to localStorage
-        function saveCart() {
-            localStorage.setItem('easygo-cart', JSON.stringify(cart));
-            
-            const expiry = new Date();
-            expiry.setDate(expiry.getDate() + 7);
-            localStorage.setItem('easygo-cart-expiry', expiry.toISOString());
-        }
-
-        // Proceed to address
-        document.getElementById('proceed-to-address').addEventListener('click', () => {
-            if (cart.length === 0) {
-                showNotification('Your cart is empty! Add items first.', 'error');
-                return;
+            if (!item.unitPrice) {
+                const quantity = parseInt(item.quantity) || 1;
+                item.unitPrice = (parseFloat(item.totalPrice) || parseFloat(item.total) || 0) / quantity;
             }
-            
-            saveCart();
-            window.location.href = 'https://clean-scripts.github.io/Easygo-Address/';
         });
+        
+        localStorage.setItem('easygo-cart', JSON.stringify(cart));
+        
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 7);
+        localStorage.setItem('easygo-cart-expiry', expiry.toISOString());
+    }
 
-        // Show notification
-        function showNotification(message, type = 'info') {
-            const existingNotification = document.querySelector('.cart-notification');
-            if (existingNotification) {
-                existingNotification.remove();
-            }
-            
-            const notification = document.createElement('div');
-            notification.className = `cart-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-2xl shadow-xl font-bold text-white transition-all transform translate-x-full`;
-            
-            if (type === 'success') {
-                notification.style.backgroundColor = '#10b981';
-            } else if (type === 'warning') {
-                notification.style.backgroundColor = '#f59e0b';
-            } else if (type === 'error') {
-                notification.style.backgroundColor = '#ef4444';
-            } else {
-                notification.style.backgroundColor = '#3b82f6';
-            }
-            
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.transform = 'translateX(0)';
-            }, 10);
-            
-            setTimeout(() => {
-                notification.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }, 3000);
+    // Proceed to address
+    document.getElementById('proceed-to-address').addEventListener('click', () => {
+        if (cart.length === 0) {
+            showNotification('Your cart is empty! Add items first.', 'error');
+            return;
         }
+        
+        // Final save before proceeding
+        saveCart();
+        
+        // Calculate and store final cart total
+        let finalTotal = 0;
+        cart.forEach(item => {
+            const total = parseFloat(item.total) || parseFloat(item.totalPrice) || 0;
+            finalTotal += total;
+        });
+        
+        localStorage.setItem('easygo-cart-items-total', finalTotal.toFixed(2));
+        
+        window.location.href = 'https://clean-scripts.github.io/Easygo-Address/';
+    });
 
-        // Initialize
-        window.addEventListener('DOMContentLoaded', loadCart);
-    </script>
+    // Show notification
+    function showNotification(message, type = 'info') {
+        const existingNotification = document.querySelector('.cart-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = `cart-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-2xl shadow-xl font-bold text-white transition-all transform translate-x-full`;
+        
+        if (type === 'success') {
+            notification.style.backgroundColor = '#10b981';
+        } else if (type === 'warning') {
+            notification.style.backgroundColor = '#f59e0b';
+        } else if (type === 'error') {
+            notification.style.backgroundColor = '#ef4444';
+        } else {
+            notification.style.backgroundColor = '#3b82f6';
+        }
+        
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', loadCart);
+</script>
 </body>
 </html>
