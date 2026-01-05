@@ -4,136 +4,1203 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png">
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <!-- Firebase SDK - Add this FIRST in <head> -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-<!-- Firebase Configuration - Add this AFTER Firebase SDK -->
-<script>
-// ==================== FIREBASE CONFIGURATION ====================
-const firebaseConfig = {
-    apiKey: "AIzaSyCU_wJYBTwEwMZQ-iTYOjUZuEHEphA0DXc",
-    authDomain: "easygo-10f4b.firebaseapp.com",
-    databaseURL: "https://easygo-10f4b-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "easygo-10f4b",
-    storageBucket: "easygo-10f4b.firebasestorage.app",
-    messagingSenderId: "197660067542",
-    appId: "1:197660067542:web:6c616efb479b122f1f6b77"
-};
-
-// Global Firebase variables
-let database;
-let isFirebaseConnected = false;
-
-// Initialize Firebase
-function initializeFirebase() {
-    try {
-        const app = firebase.initializeApp(firebaseConfig);
-        database = firebase.database();
-        
-        // Monitor connection status
-        database.ref(".info/connected").on("value", function(snap) {
-            isFirebaseConnected = snap.val() === true;
-            console.log("Firebase connected:", isFirebaseConnected);
-            
-            // Update UI if status element exists
-            const statusElement = document.getElementById('firebaseStatus');
-            if (statusElement) {
-                if (isFirebaseConnected) {
-                    statusElement.textContent = "✅ Connected";
-                    statusElement.className = "bg-green-500 text-white";
-                } else {
-                    statusElement.textContent = "❌ Disconnected";
-                    statusElement.className = "bg-red-500 text-white";
-                }
-            }
-        });
-        
-        return true;
-    } catch (error) {
-        console.error("Firebase initialization error:", error);
-        return false;
-    }
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', initializeFirebase);
-</script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <title>Easy Go | Cart</title>
-</head>
-<body>
-    <!-- Your existing HTML structure -->
     
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        
+        .cart-item {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .cart-item:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            border-color: #cbd5e1;
+        }
+        
+        .remove-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .remove-btn:hover {
+            transform: scale(1.1);
+            color: #dc2626;
+        }
+        
+        .empty-cart-icon {
+            animation: bounce 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .quantity-btn {
+            transition: all 0.2s;
+        }
+        
+        .quantity-btn:hover {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        
+        .cart-badge {
+            animation: pop 0.3s ease-out;
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* Notification styles */
+        .notification {
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Cart Item Counter Badge -->
+    <div id="cart-badge" class="fixed top-4 right-4 z-50 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-lg cart-badge hidden">
+        0
+    </div>
+
+    <!-- Header -->
+    <header class="relative mb-8">
+        <div class="h-48 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-600/20 z-10"></div>
+            <img src="https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/Banner.png" 
+                 class="w-full h-full object-cover" 
+                 alt="Easy Go Banner"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1200 300%22%3E%3Cdefs%3E%3ClinearGradient id=%22grad%22 x1=%220%%25%22 y1=%220%%25%22 x2=%22100%%25%22 y2=%22100%%25%22%3E%3Cstop offset=%220%%25%22 style=%22stop-color:%233b82f6;stop-opacity:1%22/%3E%3Cstop offset=%22100%%25%22 style=%22stop-color:%2310b981;stop-opacity:1%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%221200%22 height=%22300%22 fill=%22url(%23grad)%22/%3E%3Ctext x=%22600%22 y=%22150%22 font-family=%22Arial%22 font-size=%2248%22 fill=%22white%22 text-anchor=%22middle%22%3EEasy Go Restaurant%3C/text%3E%3C/svg%3E'">
+        </div>
+        <div class="absolute -bottom-6 left-0 right-0 flex justify-center z-20">
+            <div class="relative">
+                <img src="https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png" 
+                     class="h-24 w-24 rounded-full border-4 border-white shadow-2xl bg-white p-1 pulse"
+                     alt="Easy Go Logo"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%2310b981%22/%3E%3Ctext x=%2250%22 y=%2260%22 font-family=%22Arial%22 font-size=%2230%22 fill=%22white%22 text-anchor=%22middle%22%3EEG%3C/text%3E%3C/svg%3E'">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1">
+        <div class="max-w-6xl mx-auto px-4 pt-10 pb-20">
+            <!-- Navigation -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                <a href="https://clean-scripts.github.io/Easygo-Menu/" 
+                   class="inline-flex items-center gap-3 text-gray-700 hover:text-gray-900 font-bold transition-colors group">
+                    <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="fas fa-arrow-left text-white"></i>
+                    </div>
+                    <span class="text-lg">Continue Shopping</span>
+                </a>
+                
+                <div class="text-center">
+                    <h1 class="text-4xl font-black uppercase text-gray-900 tracking-tight mb-2">Your Cart</h1>
+                    <p id="cart-count" class="text-gray-600 font-medium">0 items</p>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <button onclick="clearCart()" 
+                            class="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:opacity-90 transition-opacity font-bold shadow-lg flex items-center gap-2">
+                        <i class="fas fa-trash"></i>
+                        <span class="hidden md:inline">Clear Cart</span>
+                    </button>
+                    
+                    <button onclick="saveCartForLater()" 
+                            class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:opacity-90 transition-opacity font-bold shadow-lg flex items-center gap-2">
+                        <i class="fas fa-bookmark"></i>
+                        <span class="hidden md:inline">Save Cart</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty Cart Message -->
+            <div id="empty-cart" class="hidden text-center py-16 px-4">
+                <div class="empty-cart-icon mb-6 text-6xl">🛒</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                    Your cart is empty and waiting for delicious treats!
+                </h2>
+                <p class="text-gray-600 text-lg mb-8 max-w-md mx-auto">
+                    Add some mouth-watering items from our menu to get started
+                </p>
+                <a href="https://clean-scripts.github.io/Easygo-Menu/" 
+                   class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-2xl hover:opacity-90 transition-all shadow-xl hover:shadow-2xl">
+                    <i class="fas fa-utensils"></i>
+                    Explore Menu
+                </a>
+            </div>
+
+            <!-- Loading Skeleton -->
+            <div id="loading-skeleton" class="hidden space-y-4">
+                <div class="cart-item bg-white rounded-2xl p-6 skeleton h-32"></div>
+                <div class="cart-item bg-white rounded-2xl p-6 skeleton h-32"></div>
+                <div class="cart-item bg-white rounded-2xl p-6 skeleton h-32"></div>
+            </div>
+
+            <!-- Cart Items Container -->
+            <div id="cart-items-container" class="space-y-4 mb-8">
+                <!-- Items will be loaded here -->
+            </div>
+
+            <!-- Recently Viewed Items -->
+            <div id="recently-viewed" class="hidden mb-8">
+                <h3 class="text-2xl font-bold mb-6 text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-history text-blue-500"></i>
+                    Recently Viewed
+                </h3>
+                <div id="recent-items-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Recently viewed items will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Cart Summary -->
+            <div id="cart-summary" class="hidden bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl p-8 mb-8 border border-gray-100">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-3xl font-black text-gray-900">Order Summary</h2>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-receipt text-green-500 text-xl"></i>
+                        <span id="item-count" class="font-bold text-gray-700">0 items</span>
+                    </div>
+                </div>
+                
+                <div class="space-y-6 mb-6">
+                    <!-- Items Total -->
+                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-shopping-basket text-gray-400"></i>
+                            <span class="text-gray-700 text-lg font-medium">Items Total</span>
+                        </div>
+                        <span id="items-total" class="font-bold text-xl text-gray-900">₹0</span>
+                    </div>
+                    
+                    <!-- Delivery Estimate -->
+                    <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-truck text-gray-400"></i>
+                            <span class="text-gray-700 text-lg font-medium">Delivery Estimate</span>
+                        </div>
+                        <span class="font-bold text-lg text-green-600">30-40 min</span>
+                    </div>
+                    
+                    <!-- Total Amount -->
+                    <div class="pt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-2xl font-bold text-gray-900">Total Amount</span>
+                            <span id="cart-total" class="text-4xl font-black text-green-600">₹0</span>
+                        </div>
+                        <p class="text-gray-500 text-sm">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Delivery charges (₹49) will be added at checkout based on your location
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="proceed-to-address" 
+                            class="py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Continue to Address
+                    </button>
+                    
+                    <button onclick="continueShopping()" 
+                            class="py-5 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 text-xl font-bold rounded-2xl hover:bg-gray-300 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3">
+                        <i class="fas fa-utensils"></i>
+                        Add More Items
+                    </button>
+                </div>
+                
+                <!-- Payment Methods -->
+                <div class="mt-8 pt-6 border-t border-gray-100">
+                    <p class="text-gray-600 text-sm mb-3 font-medium">Accepted Payment Methods:</p>
+                    <div class="flex gap-3">
+                        <div class="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold">Razorpay</div>
+                        <div class="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-sm font-bold">UPI</div>
+                        <div class="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-lg text-sm font-bold">Cards</div>
+                        <div class="px-3 py-1 bg-gray-50 text-gray-700 rounded-lg text-sm font-bold">Net Banking</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Promotional Banner -->
+            <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white mb-8 shadow-xl">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">🎉 Special Offer!</h3>
+                        <p class="opacity-90">Get 15% off on orders above ₹500. Use code: <span class="font-bold">EASYGO15</span></p>
+                    </div>
+                    <button onclick="copyCouponCode()" 
+                            class="px-6 py-3 bg-white text-purple-600 font-bold rounded-xl hover:bg-gray-100 transition-colors">
+                        Copy Code
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+                <!-- Brand Section -->
+                <div class="text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start gap-4 mb-4">
+                        <img src="https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png" 
+                             class="h-12 w-12 rounded-full border-2 border-white shadow-lg"
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%2310b981%22/%3E%3Ctext x=%2250%22 y=%2260%22 font-family=%22Arial%22 font-size=%2230%22 fill=%22white%22 text-anchor=%22middle%22%3EEG%3C/text%3E%3C/svg%3E'">
+                        <div>
+                            <h3 class="text-xl font-black uppercase tracking-tight">Easy Go Restaurant</h3>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fresh Food • Fast Delivery</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-400 text-sm max-w-xs">
+                        Your favorite restaurant delivering delicious meals right to your doorstep
+                    </p>
+                </div>
+                
+                <!-- Links Section -->
+                <div class="flex flex-col items-center md:items-end gap-4">
+                    <div class="flex flex-wrap gap-4 justify-center">
+                        <a href="https://clean-scripts.github.io/Easygo-Menu/" 
+                           class="text-gray-300 hover:text-white transition-colors font-medium text-sm">
+                            <i class="fas fa-utensils mr-2"></i>View Menu
+                        </a>
+                        <a href="https://clean-scripts.github.io/Easygo-Privacy/" 
+                           class="text-gray-300 hover:text-white transition-colors font-medium text-sm">
+                            <i class="fas fa-shield-alt mr-2"></i>Privacy Policy
+                        </a>
+                        <a href="https://clean-scripts.github.io/Easygo-Terms/" 
+                           class="text-gray-300 hover:text-white transition-colors font-medium text-sm">
+                            <i class="fas fa-file-contract mr-2"></i>Terms & Conditions
+                        </a>
+                        <a href="#" onclick="showContactInfo()" 
+                           class="text-gray-300 hover:text-white transition-colors font-medium text-sm">
+                            <i class="fas fa-phone mr-2"></i>Contact Us
+                        </a>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-whatsapp text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-instagram text-lg"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-facebook text-lg"></i>
+                        </a>
+                    </div>
+                    
+                    <p class="text-gray-500 text-xs uppercase tracking-widest text-center md:text-right">
+                        © 2024 Easy Go Restaurant • All Rights Reserved
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Contact Info Modal -->
+    <div id="contact-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Contact Information</h3>
+                <button onclick="closeContactModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-phone text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-900">Phone Number</p>
+                        <p class="text-gray-600">+91 76518 37322</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-envelope text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-900">Email</p>
+                        <p class="text-gray-600">support@easygo.com</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-map-marker-alt text-purple-600"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-gray-900">Address</p>
+                        <p class="text-gray-600">Prime Square, Indore, Madhya Pradesh 452001</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-6 border-t border-gray-100">
+                <p class="text-sm text-gray-500 text-center">
+                    Operating Hours: 10:00 AM - 11:00 PM
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Cart Modal -->
+    <div id="save-cart-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-bookmark text-green-600 text-2xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Save Your Cart</h3>
+                <p class="text-gray-600">Give a name to save your cart for later</p>
+            </div>
+            
+            <div class="mb-6">
+                <input type="text" id="cart-name" 
+                       placeholder="e.g., Weekend Party, Office Lunch..." 
+                       class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                       maxlength="30">
+                <p class="text-sm text-gray-500 mt-2">Your cart will be saved for 30 days</p>
+            </div>
+            
+            <div class="flex gap-4">
+                <button onclick="saveCartWithName()" 
+                        class="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 transition-colors shadow-lg">
+                    Save Cart
+                </button>
+                <button onclick="closeSaveCartModal()" 
+                        class="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="fixed top-4 right-4 z-50 hidden">
+        <div class="notification bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-4 max-w-sm border-l-4 slide-in">
+            <div class="flex items-center gap-3">
+                <i id="notification-icon" class="text-xl"></i>
+                <div>
+                    <p id="notification-title" class="font-bold text-gray-900"></p>
+                    <p id="notification-message" class="text-sm text-gray-600"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCU_wJYBTwEwMZQ-iTYOjUZuEHEphA0DXc",
-            authDomain: "easygo-10f4b.firebaseapp.com",
-            projectId: "easygo-10f4b",
-            storageBucket: "easygo-10f4b.firebasestorage.app",
-            messagingSenderId: "197660067542",
-            appId: "1:197660067542:web:6c616efb479b122f1f6b77",
-            databaseURL: "https://easygo-10f4b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    // ==================== GLOBAL VARIABLES ====================
+    let cart = [];
+    let recentlyViewed = [];
+
+    // ==================== CART MANAGEMENT ====================
+    // Load cart from localStorage
+    function loadCart() {
+        try {
+            // Show loading skeleton
+            document.getElementById('loading-skeleton').classList.remove('hidden');
+            
+            // Load cart data
+            const cartData = localStorage.getItem('easygo-cart');
+            const expiryData = localStorage.getItem('easygo-cart-expiry');
+            
+            // Check expiry
+            if (expiryData) {
+                const expiry = new Date(expiryData);
+                if (new Date() > expiry) {
+                    localStorage.removeItem('easygo-cart');
+                    localStorage.removeItem('easygo-cart-expiry');
+                    cart = [];
+                    showNotification('Cart expired and cleared', 'warning');
+                } else {
+                    cart = JSON.parse(cartData) || [];
+                }
+            } else {
+                cart = JSON.parse(cartData) || [];
+            }
+            
+            // Load recently viewed items
+            const recentData = localStorage.getItem('easygo-recent-items');
+            recentlyViewed = JSON.parse(recentData) || [];
+            
+            // Hide loading skeleton
+            setTimeout(() => {
+                document.getElementById('loading-skeleton').classList.add('hidden');
+                renderCart();
+                updateCartCount();
+                updateRecentlyViewed();
+            }, 500);
+            
+        } catch (error) {
+            console.error('Error loading cart:', error);
+            showNotification('Error loading cart data', 'error');
+            cart = [];
+            renderCart();
+        }
+    }
+
+    // Render cart items
+    function renderCart() {
+        const container = document.getElementById('cart-items-container');
+        const emptyCart = document.getElementById('empty-cart');
+        const summary = document.getElementById('cart-summary');
+        
+        if (cart.length === 0) {
+            container.innerHTML = '';
+            emptyCart.classList.remove('hidden');
+            summary.classList.add('hidden');
+            updateCartCount();
+            return;
+        }
+        
+        emptyCart.classList.add('hidden');
+        summary.classList.remove('hidden');
+        
+        let html = '';
+        let itemsTotal = 0;
+        let totalItems = 0;
+        
+        cart.forEach((item, index) => {
+            // Calculate item details
+            const unitPrice = parseFloat(item.unitPrice) || parseFloat(item.price) || 0;
+            const quantity = parseInt(item.quantity) || 1;
+            const itemTotal = unitPrice * quantity;
+            
+            // Update item properties
+            item.total = itemTotal.toFixed(2);
+            item.totalPrice = itemTotal;
+            item.unitPrice = unitPrice;
+            
+            itemsTotal += itemTotal;
+            totalItems += quantity;
+            
+            // Get pack display name
+            const packNames = {
+                'piece': 'Per Piece',
+                'standard': 'Standard Pack (8 pcs)',
+                'family': 'Family Pack (16 pcs)',
+                'xl': 'Extra Large (32 pcs)',
+                'half': 'Half Plate',
+                'full': 'Full Plate'
+            };
+            
+            const packDisplay = item.isPiecePack ? `${item.totalPieces || item.quantity} piece${quantity !== 1 ? 's' : ''}` : 
+                               packNames[item.pack] || item.pack || 'Standard';
+            
+            html += `
+                <div class="cart-item bg-white rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+                    <!-- Item Image -->
+                    <div class="relative flex-shrink-0">
+                        <img src="${item.image || 'https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png'}" 
+                             alt="${item.name}" 
+                             class="w-28 h-28 object-cover rounded-xl shadow-md"
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f0f9ff%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-family=%22Arial%22 font-size=%2214%22 fill=%22%233b82f6%22 text-anchor=%22middle%22%3E${encodeURIComponent(item.name.substring(0, 10))}%3C/text%3E%3C/svg%3E'">
+                        ${item.isVeg ? 
+                            '<div class="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow">' +
+                            '<div class="w-2 h-2 bg-white rounded-full"></div></div>' : 
+                            '<div class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white shadow">' +
+                            '<div class="w-2 h-2 bg-white rounded-full"></div></div>'}
+                    </div>
+                    
+                    <!-- Item Details -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-xl text-gray-900 truncate pr-4">${item.name || 'Unnamed Item'}</h3>
+                            <p class="text-green-600 font-bold text-2xl">₹${itemTotal.toFixed(2)}</p>
+                        </div>
+                        
+                        <p class="text-gray-600 text-sm mb-3 line-clamp-2">${item.description || packDisplay}</p>
+                        
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                                <i class="fas fa-box mr-1"></i>${packDisplay}
+                            </span>
+                            <span class="text-gray-500 text-sm">
+                                <i class="fas fa-tag mr-1"></i>₹${unitPrice.toFixed(2)} each
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Quantity Controls -->
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2 bg-gray-50 rounded-2xl p-2">
+                            <button onclick="updateQuantity(${index}, -1)" 
+                                    class="quantity-btn w-10 h-10 bg-white rounded-full hover:bg-blue-500 hover:text-white flex items-center justify-center shadow-sm transition-all">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            
+                            <div class="relative">
+                                <input type="number" 
+                                       value="${quantity}" 
+                                       min="1" 
+                                       max="99"
+                                       onchange="updateQuantityInput(${index}, this.value)"
+                                       class="w-16 h-10 text-center font-bold text-lg bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-blue-200 rounded">
+                                <div class="absolute -bottom-6 left-0 right-0 text-center">
+                                    <span class="text-xs text-gray-500">Qty</span>
+                                </div>
+                            </div>
+                            
+                            <button onclick="updateQuantity(${index}, 1)" 
+                                    class="quantity-btn w-10 h-10 bg-white rounded-full hover:bg-blue-500 hover:text-white flex items-center justify-center shadow-sm transition-all">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Remove Button -->
+                        <button onclick="removeItem(${index})" 
+                                class="remove-btn text-red-500 hover:text-red-700 p-3">
+                            <i class="fas fa-trash-alt text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        updateSummary(itemsTotal, totalItems);
+        saveCart();
+    }
+
+    // Update quantity
+    function updateQuantity(index, change) {
+        if (index < 0 || index >= cart.length) {
+            showNotification('Item not found in cart', 'error');
+            return;
+        }
+        
+        const item = cart[index];
+        let newQuantity = (item.quantity || 1) + change;
+        
+        if (newQuantity < 1) {
+            removeItem(index);
+            return;
+        }
+        
+        if (newQuantity > 99) {
+            newQuantity = 99;
+            showNotification('Maximum quantity reached (99 items)', 'info');
+        }
+        
+        item.quantity = newQuantity;
+        
+        // Update item properties
+        const unitPrice = parseFloat(item.unitPrice) || parseFloat(item.price) || 0;
+        const itemTotal = unitPrice * newQuantity;
+        
+        item.total = itemTotal.toFixed(2);
+        item.totalPrice = itemTotal;
+        
+        // Update description for piece packs
+        if (item.isPiecePack) {
+            item.totalPieces = newQuantity;
+            item.description = `${newQuantity} piece${newQuantity !== 1 ? 's' : ''}`;
+        }
+        
+        saveCart();
+        renderCart();
+        
+        // Show notification
+        if (change > 0) {
+            showNotification(`Added ${item.name}`, 'success');
+        } else {
+            showNotification(`Removed ${item.name}`, 'warning');
+        }
+    }
+
+    // Update quantity via input
+    function updateQuantityInput(index, value) {
+        const newQuantity = parseInt(value);
+        
+        if (isNaN(newQuantity) || newQuantity < 1) {
+            removeItem(index);
+            return;
+        }
+        
+        if (newQuantity > 99) {
+            showNotification('Maximum quantity is 99 items', 'info');
+            updateQuantity(index, 0); // Reset display
+            return;
+        }
+        
+        const currentQuantity = cart[index].quantity || 1;
+        const change = newQuantity - currentQuantity;
+        
+        if (change !== 0) {
+            updateQuantity(index, change);
+        }
+    }
+
+    // Remove item
+    function removeItem(index) {
+        if (index < 0 || index >= cart.length) {
+            showNotification('Item not found in cart', 'error');
+            return;
+        }
+        
+        const itemName = cart[index].name;
+        
+        // Add to recently viewed before removing
+        addToRecentlyViewed(cart[index]);
+        
+        cart.splice(index, 1);
+        saveCart();
+        renderCart();
+        updateCartCount();
+        
+        showNotification(`${itemName} removed from cart`, 'warning');
+    }
+
+    // Clear entire cart
+    function clearCart() {
+        if (cart.length === 0) {
+            showNotification('Your cart is already empty', 'info');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to clear your entire cart?')) {
+            // Save current cart items to recently viewed
+            cart.forEach(item => {
+                addToRecentlyViewed(item);
+            });
+            
+            cart = [];
+            saveCart();
+            renderCart();
+            updateCartCount();
+            showNotification('Cart cleared successfully', 'success');
+        }
+    }
+
+    // Save cart to localStorage
+    function saveCart() {
+        try {
+            // Clean up cart data
+            cart.forEach(item => {
+                // Ensure all required properties exist
+                if (!item.unitPrice && item.price) {
+                    item.unitPrice = parseFloat(item.price);
+                }
+                if (!item.total && item.totalPrice) {
+                    item.total = parseFloat(item.totalPrice).toFixed(2);
+                }
+                if (!item.totalPrice && item.total) {
+                    item.totalPrice = parseFloat(item.total);
+                }
+                
+                // Calculate if not present
+                const unitPrice = item.unitPrice || item.price || 0;
+                const quantity = item.quantity || 1;
+                const total = unitPrice * quantity;
+                
+                item.total = total.toFixed(2);
+                item.totalPrice = total;
+            });
+            
+            localStorage.setItem('easygo-cart', JSON.stringify(cart));
+            
+            // Set expiry (7 days)
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + 7);
+            localStorage.setItem('easygo-cart-expiry', expiry.toISOString());
+            
+        } catch (error) {
+            console.error('Error saving cart:', error);
+            showNotification('Error saving cart data', 'error');
+        }
+    }
+
+    // ==================== RECENTLY VIEWED ====================
+    function addToRecentlyViewed(item) {
+        // Remove if already exists
+        recentlyViewed = recentlyViewed.filter(i => i.id !== item.id);
+        
+        // Add to beginning
+        recentlyViewed.unshift({
+            id: item.id || Date.now(),
+            name: item.name,
+            price: item.unitPrice || item.price,
+            image: item.image,
+            description: item.description,
+            isVeg: item.isVeg
+        });
+        
+        // Keep only last 6 items
+        if (recentlyViewed.length > 6) {
+            recentlyViewed = recentlyViewed.slice(0, 6);
+        }
+        
+        localStorage.setItem('easygo-recent-items', JSON.stringify(recentlyViewed));
+        updateRecentlyViewed();
+    }
+
+    function updateRecentlyViewed() {
+        const container = document.getElementById('recently-viewed');
+        const itemsContainer = document.getElementById('recent-items-container');
+        
+        if (recentlyViewed.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        
+        container.classList.remove('hidden');
+        
+        let html = '';
+        recentlyViewed.forEach(item => {
+            html += `
+                <div class="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                     onclick="addRecentlyViewedItem('${item.id}')">
+                    <div class="flex items-start gap-3">
+                        <img src="${item.image || 'https://raw.githubusercontent.com/Clean-Scripts/EasyGo-Expense-Tracker/refs/heads/main/logo.png'}" 
+                             alt="${item.name}"
+                             class="w-16 h-16 object-cover rounded-lg"
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23f0f9ff%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-family=%22Arial%22 font-size=%2212%22 fill=%22%233b82f6%22 text-anchor=%22middle%22%3E${encodeURIComponent(item.name.substring(0, 8))}%3C/text%3E%3C/svg%3E'">
+                        <div>
+                            <h4 class="font-bold text-gray-900 text-sm line-clamp-1">${item.name}</h4>
+                            <p class="text-green-600 font-bold">₹${item.price}</p>
+                            <button onclick="event.stopPropagation(); addRecentlyViewedItem('${item.id}')" 
+                                    class="mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg hover:bg-green-200 transition-colors">
+                                <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        itemsContainer.innerHTML = html;
+    }
+
+    function addRecentlyViewedItem(itemId) {
+        const item = recentlyViewed.find(i => i.id === itemId);
+        if (!item) return;
+        
+        // Check if already in cart
+        const existingIndex = cart.findIndex(i => i.id === itemId);
+        
+        if (existingIndex >= 0) {
+            // Increase quantity
+            updateQuantity(existingIndex, 1);
+        } else {
+            // Add new item
+            cart.push({
+                ...item,
+                quantity: 1,
+                unitPrice: item.price,
+                total: item.price,
+                totalPrice: parseFloat(item.price)
+            });
+            
+            saveCart();
+            renderCart();
+            updateCartCount();
+            showNotification(`${item.name} added to cart`, 'success');
+        }
+    }
+
+    // ==================== SUMMARY & CALCULATIONS ====================
+    function updateSummary(itemsTotal, totalItems) {
+        document.getElementById('items-total').textContent = `₹${itemsTotal.toFixed(2)}`;
+        document.getElementById('cart-total').textContent = `₹${itemsTotal.toFixed(2)}`;
+        document.getElementById('item-count').textContent = `${totalItems} item${totalItems !== 1 ? 's' : ''}`;
+        document.getElementById('cart-count').textContent = `${totalItems} item${totalItems !== 1 ? 's' : ''} • ₹${itemsTotal.toFixed(2)}`;
+        
+        localStorage.setItem('easygo-cart-items-total', itemsTotal.toFixed(2));
+    }
+
+    function updateCartCount() {
+        const badge = document.getElementById('cart-badge');
+        const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        
+        if (totalItems > 0) {
+            badge.textContent = totalItems > 99 ? '99+' : totalItems;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // ==================== CHECKOUT ====================
+    document.getElementById('proceed-to-address').addEventListener('click', proceedToCheckout);
+
+    function proceedToCheckout() {
+        if (cart.length === 0) {
+            showNotification('Your cart is empty! Add items first.', 'error');
+            return;
+        }
+        
+        // Validate cart
+        let isValid = true;
+        cart.forEach(item => {
+            if (!item.unitPrice || !item.quantity) {
+                isValid = false;
+                showNotification(`Invalid item: ${item.name}`, 'error');
+            }
+        });
+        
+        if (!isValid) {
+            showNotification('Please fix cart items before checkout', 'error');
+            return;
+        }
+        
+        // Calculate final total
+        let finalTotal = 0;
+        cart.forEach(item => {
+            const total = parseFloat(item.total) || parseFloat(item.totalPrice) || 0;
+            finalTotal += total;
+        });
+        
+        // Save final data
+        localStorage.setItem('easygo-cart-items-total', finalTotal.toFixed(2));
+        localStorage.setItem('easygo-cart-checkout-ready', 'true');
+        localStorage.setItem('easygo-checkout-time', new Date().toISOString());
+        
+        // Show loading
+        showNotification('Preparing checkout...', 'info');
+        
+        // Redirect to address page
+        setTimeout(() => {
+            window.location.href = 'https://clean-scripts.github.io/Easygo-Address/';
+        }, 1000);
+    }
+
+    // ==================== SAVE CART FEATURE ====================
+    function saveCartForLater() {
+        if (cart.length === 0) {
+            showNotification('Your cart is empty', 'info');
+            return;
+        }
+        
+        document.getElementById('save-cart-modal').classList.remove('hidden');
+        document.getElementById('cart-name').focus();
+    }
+
+    function closeSaveCartModal() {
+        document.getElementById('save-cart-modal').classList.add('hidden');
+        document.getElementById('cart-name').value = '';
+    }
+
+    function saveCartWithName() {
+        const cartName = document.getElementById('cart-name').value.trim();
+        
+        if (!cartName) {
+            showNotification('Please enter a name for your cart', 'warning');
+            return;
+        }
+        
+        const savedCarts = JSON.parse(localStorage.getItem('easygo-saved-carts') || '{}');
+        
+        savedCarts[cartName] = {
+            items: cart,
+            savedAt: new Date().toISOString(),
+            total: cart.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0)
         };
         
-        let database;
-        let isFirebaseConnected = false;
+        localStorage.setItem('easygo-saved-carts', JSON.stringify(savedCarts));
         
-        function initializeFirebase() {
-            try {
-                const app = firebase.initializeApp(firebaseConfig);
-                database = firebase.database();
-                
-                const connectedRef = database.ref(".info/connected");
-                connectedRef.on("value", function(snap) {
-                    isFirebaseConnected = snap.val() === true;
-                });
-            } catch (error) {
-                console.error("Firebase error:", error);
-            }
+        closeSaveCartModal();
+        showNotification(`Cart saved as "${cartName}"`, 'success');
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function continueShopping() {
+        window.location.href = 'https://clean-scripts.github.io/Easygo-Menu/';
+    }
+
+    function copyCouponCode() {
+        const couponCode = 'EASYGO15';
+        navigator.clipboard.writeText(couponCode)
+            .then(() => {
+                showNotification(`Coupon code "${couponCode}" copied!`, 'success');
+            })
+            .catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = couponCode;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification(`Coupon code "${couponCode}" copied!`, 'success');
+            });
+    }
+
+    function showContactInfo() {
+        document.getElementById('contact-modal').classList.remove('hidden');
+    }
+
+    function closeContactModal() {
+        document.getElementById('contact-modal').classList.add('hidden');
+    }
+
+    // ==================== NOTIFICATION SYSTEM ====================
+    function showNotification(message, type = 'info') {
+        const toast = document.getElementById('notification-toast');
+        const icon = document.getElementById('notification-icon');
+        const title = document.getElementById('notification-title');
+        const msg = document.getElementById('notification-message');
+        
+        // Set colors and icon
+        let borderColor = '';
+        let iconClass = '';
+        let notificationTitle = '';
+        
+        switch(type) {
+            case 'success':
+                borderColor = 'border-l-green-500';
+                iconClass = 'fas fa-check-circle text-green-500';
+                notificationTitle = 'Success!';
+                break;
+            case 'error':
+                borderColor = 'border-l-red-500';
+                iconClass = 'fas fa-times-circle text-red-500';
+                notificationTitle = 'Error!';
+                break;
+            case 'warning':
+                borderColor = 'border-l-yellow-500';
+                iconClass = 'fas fa-exclamation-triangle text-yellow-500';
+                notificationTitle = 'Warning!';
+                break;
+            case 'info':
+                borderColor = 'border-l-blue-500';
+                iconClass = 'fas fa-info-circle text-blue-500';
+                notificationTitle = 'Info';
+                break;
         }
         
-        // Track cart actions
-        function trackCartAction(action, cartData) {
-            if (!isFirebaseConnected) return;
-            
-            database.ref('cart_actions').push().set({
-                action: action,
-                ...cartData,
-                timestamp: Date.now(),
-                date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-            });
-        }
+        // Update content
+        icon.className = iconClass;
+        title.textContent = notificationTitle;
+        msg.textContent = message;
+        toast.querySelector('.notification').className = `notification bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-4 max-w-sm border-l-4 slide-in ${borderColor}`;
         
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeFirebase();
-            
-            // Track cart view
-            const cart = JSON.parse(localStorage.getItem('easygo-cart') || '[]');
-            if (isFirebaseConnected && cart.length > 0) {
-                database.ref('cart_views').push().set({
-                    items_count: cart.length,
-                    total: cart.reduce((sum, item) => sum + (item.totalPrice || 0), 0),
-                    timestamp: Date.now(),
-                    date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-                });
+        // Show notification
+        toast.classList.remove('hidden');
+        
+        // Auto hide after 4 seconds
+        setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 4000);
+    }
+
+    // ==================== INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', function() {
+        // Load cart data
+        loadCart();
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl + S to save cart
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveCartForLater();
             }
             
-            // Track proceed to address
-            document.getElementById('proceed-to-address').addEventListener('click', function() {
-                trackCartAction('proceed_to_address', {
-                    items_count: cart.length,
-                    total: cart.reduce((sum, item) => sum + (item.totalPrice || 0), 0)
-                });
-            });
+            // Esc to close modals
+            if (e.key === 'Escape') {
+                closeContactModal();
+                closeSaveCartModal();
+            }
+            
+            // Ctrl + ArrowLeft to continue shopping
+            if (e.ctrlKey && e.key === 'ArrowLeft') {
+                continueShopping();
+            }
+            
+            // Ctrl + ArrowRight to proceed to checkout
+            if (e.ctrlKey && e.key === 'ArrowRight') {
+                proceedToCheckout();
+            }
         });
-    </script>
+        
+        // Check for saved cart from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const savedCartName = urlParams.get('loadCart');
+        if (savedCartName) {
+            loadSavedCart(savedCartName);
+        }
+        
+        // Show welcome message if cart is empty
+        setTimeout(() => {
+            if (cart.length === 0 && !localStorage.getItem('easygo-cart-welcome-shown')) {
+                showNotification('Add items to your cart to get started! 🛒', 'info');
+                localStorage.setItem('easygo-cart-welcome-shown', 'true');
+            }
+        }, 1000);
+    });
+
+    // ==================== ADDITIONAL FEATURES ====================
+    function loadSavedCart(cartName) {
+        const savedCarts = JSON.parse(localStorage.getItem('easygo-saved-carts') || '{}');
+        const savedCart = savedCarts[cartName];
+        
+        if (savedCart) {
+            cart = savedCart.items;
+            saveCart();
+            renderCart();
+            updateCartCount();
+            
+            // Remove from URL
+            const url = new URL(window.location);
+            url.searchParams.delete('loadCart');
+            window.history.replaceState({}, '', url);
+            
+            showNotification(`Loaded saved cart: "${cartName}"`, 'success');
+        }
+    }
+
+    // Export cart as text (for sharing)
+    function exportCart() {
+        if (cart.length === 0) {
+            showNotification('Cart is empty', 'info');
+            return;
+        }
+        
+        let text = 'Easy Go Cart Items:\n\n';
+        cart.forEach(item => {
+            text += `• ${item.name} x${item.quantity} - ₹${(item.totalPrice || item.total)}\n`;
+        });
+        
+        const total = cart.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+        text += `\nTotal: ₹${total.toFixed(2)}`;
+        
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                showNotification('Cart copied to clipboard!', 'success');
+            })
+            .catch(() => {
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification('Cart copied to clipboard!', 'success');
+            });
+    }
+
+    // Quick add function (can be called from menu page)
+    window.quickAddToCart = function(item) {
+        // Check if item already exists
+        const existingIndex = cart.findIndex(i => i.id === item.id);
+        
+        if (existingIndex >= 0) {
+            // Increase quantity
+            updateQuantity(existingIndex, 1);
+        } else {
+            // Add new item
+            cart.push({
+                ...item,
+                quantity: 1,
+                unitPrice: item.price,
+                total: item.price,
+                totalPrice: parseFloat(item.price)
+            });
+            
+            saveCart();
+            renderCart();
+            updateCartCount();
+            showNotification(`${item.name} added to cart!`, 'success');
+        }
+        
+        // Scroll to top of cart
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Make functions available globally
+    window.updateQuantity = updateQuantity;
+    window.removeItem = removeItem;
+    window.clearCart = clearCart;
+    window.saveCartForLater = saveCartForLater;
+    window.continueShopping = continueShopping;
+    window.copyCouponCode = copyCouponCode;
+    window.showContactInfo = showContactInfo;
+    window.closeContactModal = closeContactModal;
+    window.saveCartWithName = saveCartWithName;
+    window.closeSaveCartModal = closeSaveCartModal;
+    window.proceedToCheckout = proceedToCheckout;
+    window.addRecentlyViewedItem = addRecentlyViewedItem;
+    window.exportCart = exportCart;
+</script>
 </body>
 </html>
