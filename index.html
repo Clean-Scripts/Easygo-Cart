@@ -78,6 +78,19 @@
         .success-toast.show {
             transform: translateX(-50%) translateY(0);
         }
+        
+        /* Notification */
+        .cart-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -116,9 +129,7 @@
         <div class="flex justify-between items-center mb-8">
             <a href="https://clean-scripts.github.io/Easygo-Menu/" 
                class="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
+                <i class="fas fa-arrow-left"></i>
                 Continue Shopping
             </a>
             <h1 class="text-3xl font-black uppercase text-gray-900">Your Cart</h1>
@@ -126,13 +137,14 @@
 
         <!-- Empty Cart Message -->
         <div id="empty-cart" class="hidden text-center py-16">
-            <div class="empty-cart-icon mb-6">😖😭</div>
+            <div class="empty-cart-icon mb-6">🛒</div>
             <h2 class="text-3xl font-bold text-gray-700 mb-4">
-                Your cart is craving for some fantastic evening snacks
+                Your cart is empty
             </h2>
+            <p class="text-gray-500 mb-6">Add some delicious snacks to get started!</p>
             <a href="https://clean-scripts.github.io/Easygo-Menu/" 
                class="inline-block mt-6 px-8 py-4 bg-green-500 text-white font-bold rounded-2xl hover:bg-green-600 transition-colors shadow-lg">
-                Browse Menu
+                <i class="fas fa-utensils mr-2"></i>Browse Menu
             </a>
         </div>
 
@@ -163,16 +175,23 @@
                 </div>
             </div>
             
+            <!-- Clear Cart Button -->
+            <button id="clear-cart-btn" 
+                    class="w-full py-3 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-colors shadow mb-4">
+                <i class="fas fa-trash mr-2"></i>Clear Entire Cart
+            </button>
+            
+            <!-- Proceed to Address Button -->
             <button id="proceed-to-address" 
                     class="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg">
-                📍 Proceed to Address
+                <i class="fas fa-map-marker-alt mr-2"></i>Proceed to Address
             </button>
         </div>
 
         <!-- Cart Expiry Notice -->
         <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center mb-8">
             <p class="text-yellow-700 font-bold">
-                ⏰ Cart items saved for 1 week
+                <i class="fas fa-clock mr-2"></i>Cart items saved for 1 week
             </p>
             <p class="text-yellow-600 text-sm mt-2">
                 Your cart will be automatically cleared after 7 days of inactivity
@@ -294,38 +313,24 @@
             const firebaseCart = snapshot.val();
             
             if (firebaseCart && firebaseCart.items) {
-                // Merge with local cart (Firebase as source of truth)
-                const localCart = JSON.parse(localStorage.getItem('easygo-cart') || '[]');
+                // Use Firebase cart as source of truth
+                cart = firebaseCart.items;
                 
-                if (localCart.length === 0) {
-                    // If local cart is empty, use Firebase cart
-                    cart = firebaseCart.items;
-                    localStorage.setItem('easygo-cart', JSON.stringify(cart));
-                    showSuccessToast('Cart synced from cloud!');
-                } else {
-                    // Merge carts (prefer newer items)
-                    const mergedCart = [...firebaseCart.items];
-                    
-                    // Add local items not in Firebase
-                    localCart.forEach(localItem => {
-                        const exists = mergedCart.some(fbItem => fbItem.id === localItem.id);
-                        if (!exists) {
-                            mergedCart.push(localItem);
-                        }
-                    });
-                    
-                    cart = mergedCart;
-                }
+                // Also save to localStorage for offline access
+                localStorage.setItem('easygo-cart', JSON.stringify(cart));
+                localStorage.setItem(`cart_${userPhone}`, JSON.stringify(cart));
                 
-                // Save merged cart to Firebase
-                await saveCartToFirebase();
-                
+                showSuccessToast('Cart synced from cloud!', 'Your latest items are loaded');
                 renderCart();
-                showSuccessToast('Cart synced with cloud!');
+                
+            } else {
+                // No Firebase cart, use local storage
+                loadCartFromLocalStorage();
             }
             
         } catch (error) {
             console.error("Error syncing cart with Firebase:", error);
+            loadCartFromLocalStorage();
         }
     }
 
@@ -355,13 +360,17 @@
             console.log("Cart saved to Firebase");
             
             // Also track in analytics
-            await database.ref('cart_updates').push().set({
-                userPhone: userPhone,
-                itemCount: cart.length,
-                cartTotal: calculateCartTotal(),
-                timestamp: Date.now(),
-                action: 'cart_updated'
-            });
+            try {
+                await database.ref('cart_updates').push().set({
+                    userPhone: userPhone,
+                    itemCount: cart.length,
+                    cartTotal: calculateCartTotal(),
+                    timestamp: Date.now(),
+                    action: 'cart_updated'
+                });
+            } catch (analyticsError) {
+                console.error("Error tracking cart update:", analyticsError);
+            }
             
             return true;
             
@@ -389,102 +398,153 @@
         userPhone = localStorage.getItem('easygo-user-phone');
         
         if (!userPhone) {
-            console.warn("No user phone found in localStorage");
-            // Use local cart only
-            const cartData = localStorage.getItem('easygo-cart');
-            const expiryData = localStorage.getItem('easygo-cart-expiry');
-            
-            // Check expiry
-            if (expiryData) {
-                const expiry = new Date(expiryData);
-                if (new Date() > expiry) {
-                    localStorage.removeItem('easygo-cart');
-                    localStorage.removeItem('easygo-cart-expiry');
-                    cart = [];
-                    showNotification('Cart expired and cleared', 'warning');
-                } else {
-                    cart = JSON.parse(cartData) || [];
-                }
-            } else {
-                cart = JSON.parse(cartData) || [];
-            }
-            
-            renderCart();
+            console.log("No user phone found, checking for anonymous cart");
+            loadCartFromLocalStorage();
             return;
         }
         
-        // If we have user phone, try to load from Firebase
+        console.log("User phone found:", userPhone);
+        
+        // If Firebase is connected, sync from Firebase
         if (isFirebaseConnected) {
             syncCartWithFirebase();
         } else {
-            // Fallback to localStorage
-            const cartData = localStorage.getItem(`cart_${userPhone}`) || localStorage.getItem('easygo-cart');
-            const expiryData = localStorage.getItem('easygo-cart-expiry');
-            
-            if (cartData) {
-                if (expiryData) {
-                    const expiry = new Date(expiryData);
-                    if (new Date() > expiry) {
-                        localStorage.removeItem(`cart_${userPhone}`);
-                        localStorage.removeItem('easygo-cart');
-                        localStorage.removeItem('easygo-cart-expiry');
-                        cart = [];
-                        showNotification('Cart expired and cleared', 'warning');
-                    } else {
-                        cart = JSON.parse(cartData);
-                    }
-                } else {
-                    cart = JSON.parse(cartData);
-                }
-            } else {
-                cart = [];
-            }
-            
-            renderCart();
+            // Otherwise load from local storage
+            loadCartFromLocalStorage();
         }
     }
 
-    function saveCartToLocalStorage() {
-        // Ensure all items have proper price properties
-        cart.forEach(item => {
-            if (!item.total && item.totalPrice) {
-                item.total = item.totalPrice.toFixed(2);
+    function loadCartFromLocalStorage() {
+        console.log("Loading cart from local storage...");
+        
+        // Try multiple storage locations for compatibility
+        let cartData = null;
+        
+        if (userPhone) {
+            cartData = localStorage.getItem(`cart_${userPhone}`);
+            console.log(`Found cart for user ${userPhone}:`, cartData ? JSON.parse(cartData).length : 0);
+        }
+        
+        if (!cartData) {
+            cartData = localStorage.getItem('easygo-cart');
+            console.log("Found easygo-cart:", cartData ? JSON.parse(cartData).length : 0);
+        }
+        
+        if (!cartData) {
+            // Try the old format
+            cartData = localStorage.getItem('cart');
+            console.log("Found old cart format:", cartData ? JSON.parse(cartData).length : 0);
+        }
+        
+        // Check expiry
+        const expiryData = localStorage.getItem('easygo-cart-expiry');
+        if (expiryData) {
+            const expiry = new Date(expiryData);
+            if (new Date() > expiry) {
+                console.log("Cart expired, clearing...");
+                localStorage.removeItem('easygo-cart');
+                localStorage.removeItem('easygo-cart-expiry');
+                if (userPhone) {
+                    localStorage.removeItem(`cart_${userPhone}`);
+                }
+                cartData = null;
+                showNotification('Cart expired and cleared', 'warning');
             }
-            if (!item.totalPrice && item.total) {
+        }
+        
+        if (cartData) {
+            try {
+                cart = JSON.parse(cartData);
+                console.log("Cart loaded successfully:", cart.length, "items");
+                
+                // Normalize cart items
+                normalizeCartItems();
+                
+            } catch (error) {
+                console.error("Error parsing cart data:", error);
+                cart = [];
+                showNotification('Error loading cart', 'error');
+            }
+        } else {
+            cart = [];
+            console.log("No cart data found");
+        }
+        
+        renderCart();
+    }
+
+    function normalizeCartItems() {
+        // Ensure all cart items have consistent properties
+        cart.forEach(item => {
+            // Ensure price properties exist
+            if (item.unitPrice === undefined && item.price !== undefined) {
+                item.unitPrice = parseFloat(item.price);
+            }
+            if (item.price === undefined && item.unitPrice !== undefined) {
+                item.price = parseFloat(item.unitPrice);
+            }
+            
+            // Ensure total properties exist
+            if (item.totalPrice === undefined && item.total !== undefined) {
                 item.totalPrice = parseFloat(item.total);
             }
-            if (!item.unitPrice) {
-                const quantity = parseInt(item.quantity) || 1;
-                item.unitPrice = (parseFloat(item.totalPrice) || parseFloat(item.total) || 0) / quantity;
+            if (item.total === undefined && item.totalPrice !== undefined) {
+                item.total = item.totalPrice.toFixed(2);
+            }
+            
+            // Ensure quantity exists
+            if (item.quantity === undefined) {
+                item.quantity = 1;
+            }
+            
+            // Ensure item has an ID
+            if (!item.id) {
+                item.id = `${item.itemId || 'item'}-${Date.now()}`;
             }
         });
+    }
+
+    function saveCartToLocalStorage() {
+        console.log("Saving cart to local storage:", cart.length, "items");
+        
+        // Ensure all items have proper price properties
+        normalizeCartItems();
         
         // Save to localStorage with user phone if available
         if (userPhone) {
             localStorage.setItem(`cart_${userPhone}`, JSON.stringify(cart));
         }
         
+        // Also save to universal location
         localStorage.setItem('easygo-cart', JSON.stringify(cart));
         
+        // Set expiry (7 days)
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + 7);
         localStorage.setItem('easygo-cart-expiry', expiry.toISOString());
+        
+        console.log("Cart saved successfully");
     }
 
     function renderCart() {
         const container = document.getElementById('cart-items-container');
         const emptyCart = document.getElementById('empty-cart');
         const summary = document.getElementById('cart-summary');
+        const clearBtn = document.getElementById('clear-cart-btn');
+        
+        console.log("Rendering cart with", cart.length, "items");
         
         if (cart.length === 0) {
             container.innerHTML = '';
             emptyCart.classList.remove('hidden');
             summary.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.add('hidden');
             return;
         }
         
         emptyCart.classList.add('hidden');
         summary.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.remove('hidden');
         
         let html = '';
         let itemsTotal = 0;
@@ -495,7 +555,7 @@
             const quantity = parseInt(item.quantity) || 1;
             const itemTotal = unitPrice * quantity;
             
-            // Ensure all price properties exist
+            // Ensure all price properties are updated
             item.total = itemTotal.toFixed(2);
             item.totalPrice = itemTotal;
             if (!item.unitPrice) item.unitPrice = unitPrice;
@@ -534,25 +594,19 @@
                         <div class="flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2">
                             <button onclick="updateQuantity(${index}, -1)" 
                                     class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
-                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
-                                </svg>
+                                <i class="fas fa-minus text-gray-700"></i>
                             </button>
                             <span class="font-bold text-lg w-8 text-center">${quantity}</span>
                             <button onclick="updateQuantity(${index}, 1)" 
                                     class="w-8 h-8 bg-white rounded-full hover:bg-gray-100 flex items-center justify-center shadow-sm">
-                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                </svg>
+                                <i class="fas fa-plus text-gray-700"></i>
                             </button>
                         </div>
                         
                         <!-- Remove Button -->
                         <button onclick="removeItem(${index})" 
                                 class="remove-btn ml-2 text-red-500 hover:text-red-700 p-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
@@ -579,6 +633,7 @@
             showNotification('Maximum quantity reached (99 items)', 'info');
         }
         
+        const oldQuantity = item.quantity || 1;
         item.quantity = newQuantity;
         
         // Recalculate total
@@ -589,10 +644,11 @@
         item.total = itemTotal.toFixed(2);
         item.totalPrice = itemTotal;
         
+        // Update description based on quantity
         if (item.isPiecePack) {
             item.totalPieces = newQuantity;
             item.description = `${newQuantity} piece${newQuantity !== 1 ? 's' : ''}`;
-        } else {
+        } else if (item.itemId && items[item.itemId] && items[item.itemId].hasPieces) {
             const pieces = item.pack === 'standard' ? 8 : 
                           item.pack === 'family' ? 16 : 
                           item.pack === 'xl' ? 32 : 1;
@@ -620,7 +676,7 @@
                     userPhone: userPhone,
                     itemId: item.itemId,
                     itemName: item.name,
-                    oldQuantity: item.quantity - change,
+                    oldQuantity: oldQuantity,
                     newQuantity: newQuantity,
                     timestamp: Date.now()
                 });
@@ -676,19 +732,26 @@
     }
 
     async function saveCart() {
+        console.log("Saving cart...");
+        
         // First save to localStorage
         saveCartToLocalStorage();
         
-        // Then save to Firebase if connected
-        if (userPhone) {
-            await saveCartToFirebase();
+        // Then save to Firebase if connected and user has phone
+        if (userPhone && isFirebaseConnected) {
+            const saved = await saveCartToFirebase();
+            if (saved) {
+                console.log("Cart saved to Firebase");
+            }
         }
+        
+        console.log("Cart save completed");
     }
 
     async function clearCart() {
         if (cart.length === 0) return;
         
-        if (confirm('Are you sure you want to clear your entire cart?')) {
+        if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
             // Track clearance in Firebase
             if (isFirebaseConnected && userPhone) {
                 try {
@@ -758,8 +821,9 @@
         }
         
         const notification = document.createElement('div');
-        notification.className = `cart-notification fixed top-4 right-4 z-50 px-6 py-3 rounded-2xl shadow-xl font-bold text-white transition-all transform translate-x-full`;
+        notification.className = `cart-notification`;
         
+        // Set background color based on type
         if (type === 'success') {
             notification.style.backgroundColor = '#10b981';
         } else if (type === 'warning') {
@@ -774,14 +838,18 @@
         
         document.body.appendChild(notification);
         
+        // Animate in
         setTimeout(() => {
             notification.style.transform = 'translateX(0)';
         }, 10);
         
+        // Remove after 3 seconds
         setTimeout(() => {
             notification.style.transform = 'translateX(100%)';
             setTimeout(() => {
-                notification.remove();
+                if (notification.parentNode) {
+                    notification.remove();
+                }
             }, 300);
         }, 3000);
     }
@@ -809,33 +877,104 @@
         // Initialize Firebase
         initializeFirebase();
         
-        // Load cart data
-        setTimeout(loadCart, 500);
+        // Load cart data after a short delay
+        setTimeout(() => {
+            loadCart();
+        }, 500);
         
         // Setup event listeners
         document.getElementById('proceed-to-address').addEventListener('click', proceedToAddress);
-        
-        // Add clear cart button to UI
-        addClearCartButton();
+        document.getElementById('clear-cart-btn').addEventListener('click', clearCart);
         
         console.log('Cart page initialized successfully');
     });
 
-    function addClearCartButton() {
-        const cartSummary = document.getElementById('cart-summary');
-        if (!cartSummary) return;
-        
-        const existingClearBtn = document.querySelector('#clear-cart-btn');
-        if (existingClearBtn) return;
-        
-        const clearBtn = document.createElement('button');
-        clearBtn.id = 'clear-cart-btn';
-        clearBtn.className = 'w-full mt-4 py-3 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-colors shadow';
-        clearBtn.innerHTML = '<i class="fas fa-trash mr-2"></i> Clear Entire Cart';
-        clearBtn.onclick = clearCart;
-        
-        cartSummary.querySelector('button').parentNode.insertBefore(clearBtn, cartSummary.querySelector('button'));
-    }
+    // Item data for reference (same as item page)
+    const items = {
+        'veg-momos-steamed': {
+            id: 'veg-momos-steamed',
+            name: 'Veg Momos (Steamed)',
+            description: 'Delicious steamed vegetable momos with our special garlic sauce. Perfect healthy snack!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/veg.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 9,
+            packPrices: { 'standard': 59, 'family': 99, 'xl': 199 }
+        },
+        'veg-momos-fried': {
+            id: 'veg-momos-fried',
+            name: 'Veg Momos (Fried)',
+            description: 'Crispy fried vegetable momos with spicy red chutney. Extra crunchy goodness!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/veg.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 10,
+            packPrices: { 'standard': 79, 'family': 149, 'xl': 299 }
+        },
+        'cheese-corn-steamed': {
+            id: 'cheese-corn-steamed',
+            name: 'Cheese Corn Momos (Steamed)',
+            description: 'Steamed momos filled with melted cheese and sweet corn. Creamy delight!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/cheese-corn.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 12,
+            packPrices: { 'standard': 89, 'family': 169, 'xl': 349 }
+        },
+        'cheese-corn-fried': {
+            id: 'cheese-corn-fried',
+            name: 'Cheese Corn Momos (Fried)',
+            description: 'Fried cheesy corn momos with creamy mayo dip. Ultimate cheesy treat!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/cheese-corn.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 15,
+            packPrices: { 'standard': 99, 'family': 179, 'xl': 369 }
+        },
+        'paneer-steamed': {
+            id: 'paneer-steamed',
+            name: 'Paneer Momos (Steamed)',
+            description: 'Steamed momos with spicy paneer filling. Rich and protein-packed!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/paneer.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 12,
+            packPrices: { 'standard': 79, 'family': 149, 'xl': 299 }
+        },
+        'paneer-fried': {
+            id: 'paneer-fried',
+            name: 'Paneer Momos (Fried)',
+            description: 'Crispy fried paneer momos with mint coriander chutney.',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/paneer.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 15,
+            packPrices: { 'standard': 89, 'family': 169, 'xl': 329 }
+        },
+        'mini-samosas': {
+            id: 'mini-samosas',
+            name: 'Mini Samosas',
+            description: 'Crispy mini samosas with spicy potato-peas filling. Perfect tea-time snack!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/samosas.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: true,
+            piecePrice: 10,
+            packPrices: { 'standard': 69, 'family': 149, 'xl': 259 }
+        },
+        'french-fries': {
+            id: 'french-fries',
+            name: 'French Fries',
+            description: 'Golden crispy french fries with special seasoning. Addictively delicious!',
+            image: 'https://raw.githubusercontent.com/Clean-Scripts/Easygo-Menu/refs/heads/main/fries.png',
+            category: 'Hot & Fresh Snacks',
+            hasPieces: false,
+            packs: {
+                'standard': { weight: '200g', price: 69 },
+                'family': { weight: '500g', price: 169 },
+                'xl': { weight: '1Kg', price: 299 }
+            }
+        }
+    };
 
     // ==================== PUBLIC FUNCTIONS ====================
     // Make functions available globally
